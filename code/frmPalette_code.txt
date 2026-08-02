@@ -3,6 +3,7 @@
 Private mMacro(1 To 8) As String
 
 Private Sub UserForm_Initialize()
+    On Error Resume Next
     Palette_ThemeForm Me
     SetTool 1, "例文収集", "文書から例文を登録・整理します", "ExCollect_Open", True
     SetTool 2, "例文貼付", "登録した例文を呼び出します", "ExPaste_Open", True
@@ -13,23 +14,27 @@ Private Sub UserForm_Initialize()
     SetTool 7, "", "", "", False
     SetTool 8, "", "", "", False
     LayoutTools
+    On Error GoTo 0
 End Sub
 
 Private Sub SetTool(ByVal n As Long, ByVal toolName As String, _
     ByVal description As String, ByVal macroName As String, ByVal enabled As Boolean)
 
+    On Error Resume Next
     With Me.Controls("fraTool" & n)
         .Visible = enabled
         .Controls("lblToolName" & n).Caption = toolName
         .Controls("lblToolDesc" & n).Caption = description
     End With
     mMacro(n) = macroName
+    On Error GoTo 0
 End Sub
 
 Private Sub LayoutTools()
     Dim i As Long, shown As Long, rows As Long
     Dim tile As Object
 
+    On Error Resume Next
     For i = 1 To 8
         Set tile = Me.Controls("fraTool" & i)
         If tile.Visible Then
@@ -46,6 +51,7 @@ Private Sub LayoutTools()
     End If
     Me.Height = 142 + rows * 92
     cmdClose.Top = Me.Height - 58
+    On Error GoTo 0
 End Sub
 
 Private Sub OpenTool(ByVal n As Long)

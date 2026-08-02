@@ -7,6 +7,7 @@ Private mChangingCategory As Boolean
 
 Private Sub UserForm_Initialize()
     Dim cat1 As String, cat2 As String
+    On Error Resume Next
     Palette_ThemeForm Me
     ApplyDesignFont
     LoadMainCats
@@ -15,6 +16,7 @@ Private Sub UserForm_Initialize()
     Else
         ShowNoExamples
     End If
+    On Error GoTo 0
 End Sub
 
 Private Sub ApplyDesignFont()

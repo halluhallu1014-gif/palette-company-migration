@@ -19,6 +19,7 @@ End Sub
 
 Public Sub UI_ApplyPalette(ByVal frm As Object)
     Dim i As Long, tile As Object
+    On Error Resume Next
     BaseForm frm, "Palette", 430, 234
     Rect frm, "lblPaletteHeaderBand", 0, 0, 430, 62
     Rect frm, "lblPaletteTitle", 18, 10, 250, 25
@@ -46,10 +47,12 @@ Public Sub UI_ApplyPalette(ByVal frm As Object)
     Rect frm, "cmdClose", 342, 176, 70, 26
     CaptionOf frm, "cmdClose", "閉じる"
     ButtonOf frm, "cmdClose", False
+    On Error GoTo 0
 End Sub
 
 Public Sub UI_ApplyExCollect(ByVal frm As Object)
     Dim i As Long, rowTop
+    On Error Resume Next
     BaseForm frm, "例文収集", 340, 860
     Rect frm, "lblCollectHeaderBand", 0, 0, 340, 38
     Rect frm, "lblCollectTitle", 18, 9, 108, 22
@@ -109,10 +112,12 @@ Public Sub UI_ApplyExCollect(ByVal frm As Object)
         "cmdRestoreLastCats", "cmdClear", "cmdClose")
         ButtonOf frm, CStr(rowTop), False
     Next
+    On Error GoTo 0
 End Sub
 
 Public Sub UI_ApplyExPaste(ByVal frm As Object)
     Dim i As Long, tops
+    On Error Resume Next
     BaseForm frm, "例文貼付", 340, 735
     Rect frm, "lblPasteHeaderBand", 0, 0, 340, 38
     Rect frm, "lblTitle", 18, 9, 98, 24
@@ -144,6 +149,7 @@ Public Sub UI_ApplyExPaste(ByVal frm As Object)
     ButtonOf frm, "cmdEdit", True
     ButtonOf frm, "cmdPrev", False: ButtonOf frm, "cmdNext", False
     ButtonOf frm, "cmdReload", False: ButtonOf frm, "cmdClose", False
+    On Error GoTo 0
 End Sub
 
 Public Sub UI_ApplySheets()

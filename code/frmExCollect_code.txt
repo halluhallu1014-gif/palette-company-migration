@@ -10,11 +10,13 @@ Private mLastCatCount As Long
 Private mMainCat(1 To 5) As String
 
 Private Sub UserForm_Initialize()
+    On Error Resume Next
     Palette_ThemeForm Me
     LoadMainCatOptions
     LoadDocNos
     UpdateCatRows
     SetNewMode
+    On Error GoTo 0
 End Sub
 
 Private Sub optCat1_Click(): Cat1Changed: End Sub
