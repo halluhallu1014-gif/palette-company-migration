@@ -1,0 +1,352 @@
+﻿Option Explicit
+
+Private mDocNo As String
+Private mCat1(1 To 4) As String
+Private mCat2(1 To 4) As String
+Private mCatCount As Long
+Private mLastCat1(1 To 4) As String
+Private mLastCat2(1 To 4) As String
+Private mLastCatCount As Long
+Private mMainCat(1 To 5) As String
+
+Private Sub UserForm_Initialize()
+    Palette_ThemeForm Me
+    LoadMainCatOptions
+    LoadDocNos
+    UpdateCatRows
+    SetNewMode
+End Sub
+
+Private Sub optCat1_Click(): Cat1Changed: End Sub
+Private Sub optCat2_Click(): Cat1Changed: End Sub
+Private Sub optCat3_Click(): Cat1Changed: End Sub
+Private Sub optCat4_Click(): Cat1Changed: End Sub
+Private Sub optCatOther_Click(): Cat1Changed: End Sub
+
+Private Sub Cat1Changed()
+    Dim names() As String, count As Long, i As Long, cat1 As String
+    cboCat2.Clear
+    cat1 = SelectedCat1()
+    If Len(cat1) = 0 Then Exit Sub
+    count = Ex_GetCat2(cat1, names)
+    For i = 1 To count
+        cboCat2.AddItem names(i)
+    Next
+End Sub
+
+Private Function SelectedCat1() As String
+    If optCat1.Value Then SelectedCat1 = mMainCat(1): Exit Function
+    If optCat2.Value Then SelectedCat1 = mMainCat(2): Exit Function
+    If optCat3.Value Then SelectedCat1 = mMainCat(3): Exit Function
+    If optCat4.Value Then SelectedCat1 = mMainCat(4): Exit Function
+    If optCatOther.Value Then SelectedCat1 = "その他"
+End Function
+
+Private Sub txtBody_Change()
+    If Len(mDocNo) = 0 And Len(Trim$(txtBody.Value)) > 0 _
+    And Len(Trim$(txtExName.Value)) = 0 And mCatCount > 0 Then
+        txtExName.Value = Ex_NextName(mCat2(1))
+    End If
+End Sub
+
+Private Sub cmdGetWordText_Click()
+    Dim s As String
+    s = Ex_SelectedText()
+    If Len(s) = 0 Then
+        MsgBox "Wordの選択文字列を取得できませんでした。本文は直接入力できます。", vbInformation
+    Else
+        txtBody.Value = s
+    End If
+End Sub
+
+Private Sub cmdGetExcelText_Click()
+    Dim s As String
+    s = Ex_SelectedExcelText()
+    If Len(s) = 0 Then
+        MsgBox "Excelの選択セルから文字列を取得できませんでした。" & vbCrLf & _
+               "現在の本文は変更していません。", vbInformation
+    Else
+        txtBody.Value = s
+    End If
+End Sub
+
+Private Sub cmdCatAdd_Click()
+    Dim cat1 As String
+    cat1 = SelectedCat1()
+    If Len(cat1) = 0 Or cboCat2.ListIndex < 0 Then
+        MsgBox "第1分類と第2分類を選択してください。", vbExclamation
+        Exit Sub
+    End If
+    AddCat cat1, cboCat2.Value
+End Sub
+
+Private Function AddCat(ByVal cat1 As String, ByVal cat2 As String) As Boolean
+    Dim i As Long
+    For i = 1 To mCatCount
+        If mCat1(i) = cat1 And mCat2(i) = cat2 Then
+            MsgBox "同じ分類が追加されています。", vbInformation
+            Exit Function
+        End If
+    Next
+    If mCatCount = 4 Then
+        MsgBox "登録できる分類は4件までです。", vbInformation
+        Exit Function
+    End If
+    mCatCount = mCatCount + 1
+    mCat1(mCatCount) = cat1
+    mCat2(mCatCount) = cat2
+    UpdateCatRows
+    If mCatCount = 1 And Len(mDocNo) = 0 And Len(Trim$(txtExName.Value)) = 0 Then
+        txtExName.Value = Ex_NextName(cat2)
+    End If
+    AddCat = True
+End Function
+
+Private Sub cmdDeleteCat1_Click(): DeleteCat 1: End Sub
+Private Sub cmdDeleteCat2_Click(): DeleteCat 2: End Sub
+Private Sub cmdDeleteCat3_Click(): DeleteCat 3: End Sub
+Private Sub cmdDeleteCat4_Click(): DeleteCat 4: End Sub
+
+Private Sub DeleteCat(ByVal index As Long)
+    Dim i As Long
+    If index > mCatCount Then Exit Sub
+    For i = index To mCatCount - 1
+        mCat1(i) = mCat1(i + 1)
+        mCat2(i) = mCat2(i + 1)
+    Next
+    mCat1(mCatCount) = ""
+    mCat2(mCatCount) = ""
+    mCatCount = mCatCount - 1
+    UpdateCatRows
+End Sub
+
+Private Sub cmdRestoreLastCats_Click()
+    Dim i As Long
+    If mLastCatCount = 0 Then
+        MsgBox "復元できる前回分類がありません。", vbInformation
+        Exit Sub
+    End If
+    ClearCats
+    For i = 1 To mLastCatCount
+        AddCat mLastCat1(i), mLastCat2(i)
+    Next
+End Sub
+
+Private Sub UpdateCatRows()
+    Dim i As Long, lbl As Object, btn As Object
+    For i = 1 To 4
+        Set lbl = Me.Controls("lblSelectedCat" & i)
+        Set btn = Me.Controls("cmdDeleteCat" & i)
+        If i <= mCatCount Then
+            lbl.Caption = mCat1(i) & " ＞ " & mCat2(i)
+            lbl.Visible = True
+            btn.Visible = True
+        Else
+            lbl.Caption = ""
+            lbl.Visible = False
+            btn.Visible = False
+        End If
+    Next
+    LayoutCatArea
+End Sub
+
+Private Sub LayoutCatArea()
+    Dim i As Long, shown As Long, topPos As Single
+    shown = mCatCount
+    If shown = 0 Then shown = 1
+    For i = 1 To mCatCount
+        Me.Controls("lblSelectedCat" & i).Top = 548 + (i - 1) * 24
+        Me.Controls("cmdDeleteCat" & i).Top = 546 + (i - 1) * 24
+    Next
+    topPos = 548 + shown * 24 + 6
+    cmdRestoreLastCats.Top = topPos
+    lblSource.Top = topPos + 40
+    txtSource.Top = topPos + 62
+    lblNote.Top = topPos + 97
+    txtNote.Top = topPos + 119
+    cmdSave.Top = topPos + 155
+    cmdClear.Top = topPos + 155
+    cmdClose.Top = topPos + 155
+    Me.Height = topPos + 210
+End Sub
+
+Private Sub ClearCats()
+    Dim i As Long
+    For i = 1 To 4
+        mCat1(i) = ""
+        mCat2(i) = ""
+    Next
+    mCatCount = 0
+    UpdateCatRows
+End Sub
+
+Private Sub RememberCats()
+    Dim i As Long
+    mLastCatCount = mCatCount
+    For i = 1 To 4
+        mLastCat1(i) = mCat1(i)
+        mLastCat2(i) = mCat2(i)
+    Next
+End Sub
+
+Private Sub cmdSave_Click()
+    Dim docNo As String
+    If Len(Trim$(txtBody.Value)) = 0 Then
+        MsgBox "本文を入力してください。", vbExclamation
+        txtBody.SetFocus
+        Exit Sub
+    End If
+    If Len(Trim$(txtExName.Value)) = 0 Then
+        MsgBox "例文名を入力してください。", vbExclamation
+        txtExName.SetFocus
+        Exit Sub
+    End If
+    If mCatCount = 0 Then
+        MsgBox "分類を1件以上追加してください。", vbExclamation
+        Exit Sub
+    End If
+    If Len(mDocNo) = 0 Then
+        docNo = Ex_SaveNew(txtExName.Value, txtBody.Value, txtSource.Value, _
+            txtNote.Value, mCat1, mCat2, mCatCount)
+        MsgBox docNo & " を登録しました。", vbInformation
+    Else
+        Ex_Update mDocNo, txtExName.Value, txtBody.Value, txtSource.Value, _
+            txtNote.Value, mCat1, mCat2, mCatCount
+        docNo = mDocNo
+        MsgBox docNo & " を更新しました。", vbInformation
+    End If
+    RememberCats
+    ClearAfterSave
+    LoadDocNos
+End Sub
+
+Private Sub cmdLoad_Click()
+    If cboDocNo.ListIndex < 0 Then
+        MsgBox "文書番号を選択してください。", vbExclamation
+        Exit Sub
+    End If
+    LoadDocument cboDocNo.Value
+End Sub
+
+Public Sub LoadDocument(ByVal docNo As String)
+    Dim ws As Worksheet, r As Long, lastRow As Long, firstRow As Boolean
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    mDocNo = docNo
+    cboDocNo.Value = docNo
+    ClearCats
+    firstRow = True
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = mDocNo Then
+            If firstRow Then
+                txtExName.Value = ws.Cells(r, 4).Value
+                txtBody.Value = ws.Cells(r, 5).Value
+                txtSource.Value = ws.Cells(r, 6).Value
+                txtNote.Value = ws.Cells(r, 7).Value
+                firstRow = False
+            End If
+            AddCat CStr(ws.Cells(r, 2).Value), CStr(ws.Cells(r, 3).Value)
+        End If
+    Next
+    If firstRow Then
+        MsgBox "文書番号が見つかりません。", vbExclamation
+        SetNewMode
+    Else
+        lblMode.Caption = "編集中：" & mDocNo
+        SetSelector mCat1(1), mCat2(1)
+    End If
+End Sub
+
+Private Sub SetSelector(ByVal cat1 As String, ByVal cat2 As String)
+    Dim i As Long
+    For i = 1 To 4
+        If mMainCat(i) = cat1 Then
+            fraCat1.Controls("optCat" & i).Value = True
+            cboCat2.Value = cat2
+            Exit Sub
+        End If
+    Next
+    If cat1 = "その他" Then
+        optCatOther.Value = True
+        cboCat2.Value = cat2
+    End If
+End Sub
+
+Private Sub cmdClear_Click()
+    txtBody.Value = ""
+    txtExName.Value = ""
+    txtSource.Value = ""
+    txtNote.Value = ""
+    ClearCats
+    ClearCatSelector
+    cboDocNo.ListIndex = -1
+    SetNewMode
+End Sub
+
+Private Sub ClearCatSelector()
+    optCat1.Value = False
+    optCat2.Value = False
+    optCat3.Value = False
+    optCat4.Value = False
+    optCatOther.Value = False
+    cboCat2.Clear
+End Sub
+
+Private Sub cmdClose_Click()
+    Unload Me
+End Sub
+
+Private Sub LoadMainCatOptions()
+    Dim names() As String, count As Long, i As Long, opt As Object
+    count = Ex_GetMainCats(names)
+    For i = 1 To 4
+        Set opt = fraCat1.Controls("optCat" & i)
+        opt.Visible = False
+        mMainCat(i) = ""
+    Next
+    For i = 1 To count - 1
+        mMainCat(i) = names(i)
+        Set opt = fraCat1.Controls("optCat" & i)
+        opt.Caption = names(i)
+        opt.Visible = True
+    Next
+    mMainCat(5) = "その他"
+    optCatOther.Caption = "その他"
+    optCatOther.Visible = True
+End Sub
+
+Private Sub LoadDocNos()
+    Dim ws As Worksheet, r As Long, lastRow As Long, docNo As String
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    cboDocNo.Clear
+    For r = 2 To lastRow
+        docNo = CStr(ws.Cells(r, 1).Value)
+        If Len(docNo) > 0 Then
+            If Not ComboHas(cboDocNo, docNo) Then cboDocNo.AddItem docNo
+        End If
+    Next
+End Sub
+
+Private Function ComboHas(ByVal cbo As Object, ByVal value As String) As Boolean
+    Dim i As Long
+    For i = 0 To cbo.ListCount - 1
+        If CStr(cbo.List(i)) = value Then
+            ComboHas = True
+            Exit Function
+        End If
+    Next
+End Function
+
+Private Sub ClearAfterSave()
+    txtBody.Value = ""
+    txtExName.Value = ""
+    txtNote.Value = ""
+    cboDocNo.ListIndex = -1
+    SetNewMode
+End Sub
+
+Private Sub SetNewMode()
+    mDocNo = ""
+    lblMode.Caption = "新規登録"
+End Sub

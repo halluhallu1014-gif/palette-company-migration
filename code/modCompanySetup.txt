@@ -1,0 +1,99 @@
+﻿Option Explicit
+
+Public Sub Palette_Company_Setup()
+    Dim wsCat As Worksheet, wsData As Worksheet, wsSet As Worksheet
+    On Error GoTo Failed
+
+    Set wsCat = Company_EnsureSheet("zz_ExCategory")
+    Set wsData = Company_EnsureSheet("zz_ExData")
+    Set wsSet = Company_EnsureSheet("zz_ExSetting")
+
+    Company_SetCategory wsCat
+    Company_SetData wsData
+    Company_SetSetting wsSet
+
+    UI_ApplySheets
+    UI_ApplyPalette frmPalette
+    UI_ApplyExCollect frmExCollect
+    UI_ApplyExPaste frmExPaste
+
+    MsgBox "Paletteの会社PC用セットアップが完了しました。" & vbCrLf & _
+        "続けて Palette_Company_Check を実行してください。", vbInformation
+    Exit Sub
+Failed:
+    MsgBox "セットアップを完了できませんでした。" & vbCrLf & _
+        "エラー " & Err.Number & "：" & Err.Description, vbExclamation
+End Sub
+
+Private Function Company_EnsureSheet(ByVal sheetName As String) As Worksheet
+    On Error Resume Next
+    Set Company_EnsureSheet = ThisWorkbook.Worksheets(sheetName)
+    On Error GoTo 0
+    If Company_EnsureSheet Is Nothing Then
+        Set Company_EnsureSheet = ThisWorkbook.Worksheets.Add( _
+            After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        Company_EnsureSheet.Name = sheetName
+    End If
+End Function
+
+Private Sub Company_SetCategory(ByVal ws As Worksheet)
+    Dim headers, rows, r As Long, c As Long
+    headers = Array("第1分類", "第2分類", "表示順", "使用中")
+    For c = 0 To UBound(headers)
+        If Len(CStr(ws.Cells(1, c + 1).Value)) = 0 Then ws.Cells(1, c + 1).Value = headers(c)
+    Next
+
+    If Len(CStr(ws.Cells(2, 1).Value)) = 0 Then
+        rows = Array( _
+            Array("依頼", "提出", 1, True), _
+            Array("依頼", "確認", 2, True), _
+            Array("依頼", "再提出", 3, True), _
+            Array("通知", "期限", 4, True), _
+            Array("通知", "変更", 5, True), _
+            Array("案内", "手続", 6, True), _
+            Array("お詫び", "訂正", 7, True))
+        For r = 0 To UBound(rows)
+            For c = 0 To 3
+                ws.Cells(r + 2, c + 1).Value = rows(r)(c)
+            Next
+        Next
+    End If
+    ws.Columns("A:B").ColumnWidth = 18
+    ws.Columns("C:D").ColumnWidth = 12
+End Sub
+
+Private Sub Company_SetData(ByVal ws As Worksheet)
+    Dim headers, c As Long
+    headers = Array("文書番号", "第1分類", "第2分類", "例文名", "本文", "出典", _
+        "備考", "使用中", "登録日", "更新日", "使用回数", "最終使用日")
+    For c = 0 To UBound(headers)
+        If Len(CStr(ws.Cells(1, c + 1).Value)) = 0 Then ws.Cells(1, c + 1).Value = headers(c)
+    Next
+    ws.Columns("A:A").ColumnWidth = 12
+    ws.Columns("B:C").ColumnWidth = 14
+    ws.Columns("D:D").ColumnWidth = 24
+    ws.Columns("E:E").ColumnWidth = 52
+    ws.Columns("F:G").ColumnWidth = 24
+    ws.Columns("H:K").ColumnWidth = 12
+    ws.Columns("L:L").ColumnWidth = 20
+    ws.Columns("I:J").NumberFormatLocal = "yyyy/m/d"
+    ws.Columns("L:L").NumberFormatLocal = "yyyy/m/d h:mm"
+End Sub
+
+Private Sub Company_SetSetting(ByVal ws As Worksheet)
+    If Len(CStr(ws.Cells(1, 1).Value)) = 0 Then ws.Cells(1, 1).Value = "設定名"
+    If Len(CStr(ws.Cells(1, 2).Value)) = 0 Then ws.Cells(1, 2).Value = "設定値"
+    Company_EnsureSettingKey ws, "LastPasteCat1"
+    Company_EnsureSettingKey ws, "LastPasteCat2"
+    ws.Columns("A:A").ColumnWidth = 24
+    ws.Columns("B:B").ColumnWidth = 30
+End Sub
+
+Private Sub Company_EnsureSettingKey(ByVal ws As Worksheet, ByVal key As String)
+    Dim r As Long, lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = key Then Exit Sub
+    Next
+    ws.Cells(lastRow + 1, 1).Value = key
+End Sub

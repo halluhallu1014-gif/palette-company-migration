@@ -1,0 +1,251 @@
+﻿Option Explicit
+
+Private mMainCat(1 To 5) As String
+Private mDocNo() As String, mName() As String, mBody() As String
+Private mCount As Long, mPage As Long, mSelected As Long
+Private mChangingCategory As Boolean
+
+Private Sub UserForm_Initialize()
+    Dim cat1 As String, cat2 As String
+    Palette_ThemeForm Me
+    ApplyDesignFont
+    LoadMainCats
+    If ExPaste_GetInitialCats(cat1, cat2) Then
+        ApplyCategory cat1, cat2
+    Else
+        ShowNoExamples
+    End If
+End Sub
+
+Private Sub ApplyDesignFont()
+    Dim c As Object
+    On Error Resume Next
+    For Each c In Me.Controls
+        c.Font.Name = "Meiryo UI"
+        c.Font.Size = 9
+    Next
+    For Each c In fraCat1.Controls
+        c.Font.Name = "Meiryo UI"
+        c.Font.Size = 9
+    Next
+    lblTitle.Font.Size = 15
+    lblTitle.Font.Bold = True
+    lblCat1.Font.Bold = True
+    lblCat2.Font.Bold = True
+    lblCandidates.Font.Bold = True
+    cmdEdit.Font.Bold = True
+    On Error GoTo 0
+End Sub
+
+Private Sub optCat1_Click()
+    If Not mChangingCategory Then Cat1Changed
+End Sub
+
+Private Sub optCat2_Click()
+    If Not mChangingCategory Then Cat1Changed
+End Sub
+
+Private Sub optCat3_Click()
+    If Not mChangingCategory Then Cat1Changed
+End Sub
+
+Private Sub optCat4_Click()
+    If Not mChangingCategory Then Cat1Changed
+End Sub
+
+Private Sub optCatOther_Click()
+    If Not mChangingCategory Then Cat1Changed
+End Sub
+
+Private Function SelectedCat1() As String
+    If optCat1.Value Then SelectedCat1 = mMainCat(1): Exit Function
+    If optCat2.Value Then SelectedCat1 = mMainCat(2): Exit Function
+    If optCat3.Value Then SelectedCat1 = mMainCat(3): Exit Function
+    If optCat4.Value Then SelectedCat1 = mMainCat(4): Exit Function
+    If optCatOther.Value Then SelectedCat1 = "その他"
+End Function
+
+Private Sub Cat1Changed()
+    LoadCat2AndExamples ""
+End Sub
+
+Private Sub LoadCat2AndExamples(ByVal preferredCat2 As String)
+    Dim values() As String, n As Long, i As Long
+    Dim selectedIndex As Long
+
+    mChangingCategory = True
+    cboCat2.Clear
+    ClearCandidates
+    If Len(SelectedCat1()) = 0 Then
+        mChangingCategory = False
+        Exit Sub
+    End If
+    n = Ex_GetCat2(SelectedCat1(), values)
+    For i = 1 To n: cboCat2.AddItem values(i): Next
+    If n = 0 Then
+        mChangingCategory = False
+        lblHint.Caption = "この第1分類には使用中の第2分類がありません。"
+        Exit Sub
+    End If
+
+    selectedIndex = 0
+    If Len(preferredCat2) > 0 Then
+        For i = 0 To cboCat2.ListCount - 1
+            If cboCat2.List(i) = preferredCat2 Then selectedIndex = i: Exit For
+        Next
+    End If
+    cboCat2.ListIndex = selectedIndex
+    mChangingCategory = False
+    lblHint.Caption = "例文をダブルクリックすると貼り付けます。"
+    ReloadCandidates
+End Sub
+
+Private Sub cboCat2_Change()
+    If Not mChangingCategory And cboCat2.ListIndex >= 0 Then ReloadCandidates
+End Sub
+
+Private Sub ReloadCandidates()
+    If Len(SelectedCat1()) = 0 Or cboCat2.ListIndex < 0 Then Exit Sub
+    mCount = ExPaste_Load(SelectedCat1(), cboCat2.Value, mDocNo, mName, mBody)
+    mPage = 1: mSelected = 0
+    RenderPage
+End Sub
+
+Private Sub ClearCandidates()
+    mCount = 0: mPage = 1: mSelected = 0
+    Erase mDocNo: Erase mName: Erase mBody
+    RenderPage
+End Sub
+
+Private Sub RenderPage()
+    Dim i As Long, p As Long, pages As Long, lbl As Object
+    ClearSelection
+    pages = (mCount + 4) \ 5: If pages = 0 Then pages = 1
+    If mPage > pages Then mPage = pages
+    For i = 1 To 5
+        Set lbl = Me.Controls("lblExample" & i): p = (mPage - 1) * 5 + i
+        lbl.Visible = (p <= mCount)
+        If p <= mCount Then lbl.Caption = mBody(p)
+    Next
+    lblPage.Caption = mPage & " / " & pages
+    cmdPrev.Enabled = (mPage > 1): cmdNext.Enabled = (mPage < pages)
+End Sub
+
+Private Sub lblExample1_Click(): SelectExample 1: End Sub
+Private Sub lblExample2_Click(): SelectExample 2: End Sub
+Private Sub lblExample3_Click(): SelectExample 3: End Sub
+Private Sub lblExample4_Click(): SelectExample 4: End Sub
+Private Sub lblExample5_Click(): SelectExample 5: End Sub
+
+Private Sub lblExample1_DblClick(ByVal Cancel As MSForms.ReturnBoolean): PasteExample 1: End Sub
+Private Sub lblExample2_DblClick(ByVal Cancel As MSForms.ReturnBoolean): PasteExample 2: End Sub
+Private Sub lblExample3_DblClick(ByVal Cancel As MSForms.ReturnBoolean): PasteExample 3: End Sub
+Private Sub lblExample4_DblClick(ByVal Cancel As MSForms.ReturnBoolean): PasteExample 4: End Sub
+Private Sub lblExample5_DblClick(ByVal Cancel As MSForms.ReturnBoolean): PasteExample 5: End Sub
+
+Private Sub SelectExample(ByVal rowNo As Long)
+    Dim p As Long, lbl As Object
+    ClearSelection
+    p = (mPage - 1) * 5 + rowNo
+    If p > mCount Then Exit Sub
+    mSelected = p
+    Set lbl = Me.Controls("lblExample" & rowNo)
+    lbl.BackColor = RGB(235, 235, 235)
+    lbl.BorderColor = RGB(34, 50, 84)
+End Sub
+
+Private Sub ClearSelection()
+    Dim i As Long, lbl As Object
+    mSelected = 0
+    For i = 1 To 5
+        Set lbl = Me.Controls("lblExample" & i)
+        lbl.BackColor = RGB(255, 255, 255)
+        lbl.BorderColor = RGB(190, 190, 190)
+    Next
+End Sub
+
+Private Sub PasteExample(ByVal rowNo As Long)
+    Dim p As Long
+    p = (mPage - 1) * 5 + rowNo
+    If p > mCount Then Exit Sub
+    SelectExample rowNo
+    If ExPaste_AutoPaste(mBody(p)) Then
+        ExPaste_AddUse mDocNo(p)
+        If Not ExPaste_SaveLastCats(SelectedCat1(), cboCat2.Value) Then _
+            MsgBox "前回分類を保存できませんでした。", vbInformation
+        ReloadCandidates
+    Else
+        MsgBox "貼り付け先を確認できませんでした。", vbInformation
+    End If
+End Sub
+
+Private Sub cmdPrev_Click(): If mPage > 1 Then mPage = mPage - 1: RenderPage
+End Sub
+Private Sub cmdNext_Click(): If mPage * 5 < mCount Then mPage = mPage + 1: RenderPage
+End Sub
+
+Private Function HasSelection() As Boolean
+    If mSelected = 0 Then MsgBox "例文を選択してください。", vbInformation: Exit Function
+    HasSelection = True
+End Function
+
+Private Sub cmdEdit_Click(): If HasSelection Then ExPaste_Edit mDocNo(mSelected)
+End Sub
+Private Sub cmdReload_Click(): RefreshKeepingCategory: End Sub
+Private Sub cmdClose_Click(): Unload Me: End Sub
+
+Private Sub LoadMainCats()
+    Dim values() As String, n As Long, i As Long, opt As Object
+    n = Ex_GetMainCats(values)
+    For i = 1 To 4
+        Set opt = fraCat1.Controls("optCat" & i): opt.Visible = False: mMainCat(i) = ""
+    Next
+    For i = 1 To n - 1
+        mMainCat(i) = values(i): Set opt = fraCat1.Controls("optCat" & i)
+        opt.Caption = values(i): opt.Visible = True
+    Next
+    mMainCat(5) = "その他": optCatOther.Caption = "その他": optCatOther.Visible = True
+End Sub
+
+Public Sub RefreshKeepingCategory()
+    Dim cat1 As String, cat2 As String
+    cat1 = SelectedCat1()
+    If cboCat2.ListIndex >= 0 Then cat2 = cboCat2.Value
+    LoadMainCats
+    If ExPaste_CategoryValid(cat1, cat2) Then
+        ApplyCategory cat1, cat2
+    ElseIf ExPaste_GetInitialCats(cat1, cat2) Then
+        ApplyCategory cat1, cat2
+    Else
+        ShowNoExamples
+    End If
+End Sub
+
+Private Sub ApplyCategory(ByVal cat1 As String, ByVal cat2 As String)
+    Dim i As Long
+    lblHint.Caption = "例文をダブルクリックすると貼り付けます。"
+    For i = 1 To 4
+        If mMainCat(i) = cat1 Then
+            mChangingCategory = True
+            fraCat1.Controls("optCat" & i).Value = True
+            mChangingCategory = False
+            LoadCat2AndExamples cat2
+            Exit Sub
+        End If
+    Next
+    If cat1 = "その他" Then
+        mChangingCategory = True
+        optCatOther.Value = True
+        mChangingCategory = False
+        LoadCat2AndExamples cat2
+    Else
+        ShowNoExamples
+    End If
+End Sub
+
+Private Sub ShowNoExamples()
+    optCat1.Value = False: optCat2.Value = False
+    optCat3.Value = False: optCat4.Value = False: optCatOther.Value = False
+    cboCat2.Clear: ClearCandidates
+    lblHint.Caption = "登録されている例文がありません。"
+End Sub

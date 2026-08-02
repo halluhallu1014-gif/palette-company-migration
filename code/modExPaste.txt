@@ -1,0 +1,243 @@
+﻿Option Explicit
+
+Public Sub ExPaste_Open()
+    If frmExPaste.Visible Then
+        frmExPaste.RefreshKeepingCategory
+        frmExPaste.Repaint
+    Else
+        frmExPaste.Show vbModeless
+    End If
+End Sub
+
+Public Function ExPaste_SaveLastCats(ByVal cat1 As String, ByVal cat2 As String) As Boolean
+    On Error GoTo Failed
+    ExPaste_SetValue "LastPasteCat1", cat1
+    ExPaste_SetValue "LastPasteCat2", cat2
+    ExPaste_SaveLastCats = True
+Failed:
+End Function
+
+Public Function ExPaste_GetInitialCats(ByRef cat1 As String, ByRef cat2 As String) As Boolean
+    On Error Resume Next
+    ExPaste_EnsureSetting
+    cat1 = ExPaste_GetValue("LastPasteCat1")
+    cat2 = ExPaste_GetValue("LastPasteCat2")
+    On Error GoTo 0
+    If ExPaste_CategoryValid(cat1, cat2) Then
+        ExPaste_GetInitialCats = True
+    Else
+        ExPaste_GetInitialCats = ExPaste_FirstCategory(cat1, cat2)
+    End If
+End Function
+
+Public Function ExPaste_CategoryValid(ByVal cat1 As String, ByVal cat2 As String) As Boolean
+    Dim ws As Worksheet, r As Long, lastRow As Long, masterOk As Boolean
+    If Len(cat1) = 0 Or Len(cat2) = 0 Then Exit Function
+    Set ws = ThisWorkbook.Worksheets(EX_CAT_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = cat1 And CStr(ws.Cells(r, 2).Value) = cat2 _
+        And ExPaste_IsActive(ws.Cells(r, 4).Value) Then masterOk = True: Exit For
+    Next
+    If Not masterOk Then Exit Function
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 2).Value) = cat1 And CStr(ws.Cells(r, 3).Value) = cat2 _
+        And ExPaste_IsActive(ws.Cells(r, 8).Value) Then ExPaste_CategoryValid = True: Exit Function
+    Next
+End Function
+
+Private Function ExPaste_FirstCategory(ByRef cat1 As String, ByRef cat2 As String) As Boolean
+    Dim mainCats() As String, subCats() As String
+    Dim mainCount As Long, subCount As Long, i As Long, j As Long
+    mainCount = Ex_GetMainCats(mainCats)
+    For i = 1 To mainCount
+        subCount = Ex_GetCat2(mainCats(i), subCats)
+        For j = 1 To subCount
+            If ExPaste_CategoryValid(mainCats(i), subCats(j)) Then
+                cat1 = mainCats(i): cat2 = subCats(j)
+                ExPaste_FirstCategory = True
+                Exit Function
+            End If
+        Next
+    Next
+    cat1 = "": cat2 = ""
+End Function
+
+Private Sub ExPaste_EnsureSetting()
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("zz_ExSetting")
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        ws.Name = "zz_ExSetting"
+    End If
+    If Len(CStr(ws.Cells(1, 1).Value)) = 0 Then ws.Cells(1, 1).Value = "設定名"
+    If Len(CStr(ws.Cells(1, 2).Value)) = 0 Then ws.Cells(1, 2).Value = "設定値"
+    ExPaste_RemoveDuplicates ws, "LastPasteCat1"
+    ExPaste_RemoveDuplicates ws, "LastPasteCat2"
+    If ExPaste_SettingRow(ws, "LastPasteCat1") = 0 Then
+        ws.Cells(ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1, 1).Value = "LastPasteCat1"
+    End If
+    If ExPaste_SettingRow(ws, "LastPasteCat2") = 0 Then
+        ws.Cells(ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1, 1).Value = "LastPasteCat2"
+    End If
+End Sub
+
+Private Sub ExPaste_RemoveDuplicates(ByVal ws As Worksheet, ByVal key As String)
+    Dim r As Long, lastRow As Long, found As Boolean
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    r = 2
+    Do While r <= lastRow
+        If CStr(ws.Cells(r, 1).Value) = key Then
+            If found Then
+                ws.Rows(r).Delete: lastRow = lastRow - 1: r = r - 1
+            Else
+                found = True
+            End If
+        End If
+        r = r + 1
+    Loop
+End Sub
+
+Private Function ExPaste_GetValue(ByVal key As String) As String
+    Dim ws As Worksheet, r As Long
+    On Error GoTo Done
+    ExPaste_EnsureSetting
+    Set ws = ThisWorkbook.Worksheets("zz_ExSetting")
+    r = ExPaste_SettingRow(ws, key)
+    If r > 0 Then ExPaste_GetValue = CStr(ws.Cells(r, 2).Value)
+Done:
+End Function
+
+Private Sub ExPaste_SetValue(ByVal key As String, ByVal value As String)
+    Dim ws As Worksheet, r As Long
+    ExPaste_EnsureSetting
+    Set ws = ThisWorkbook.Worksheets("zz_ExSetting")
+    r = ExPaste_SettingRow(ws, key)
+    ws.Cells(r, 2).Value = value
+End Sub
+
+Private Function ExPaste_SettingRow(ByVal ws As Worksheet, ByVal key As String) As Long
+    Dim r As Long, lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = key Then ExPaste_SettingRow = r: Exit Function
+    Next
+End Function
+
+Public Function ExPaste_Load(ByVal cat1 As String, ByVal cat2 As String, _
+    ByRef docNos() As String, ByRef names() As String, ByRef bodies() As String) As Long
+    Dim ws As Worksheet, lastRow As Long, r As Long, p As Long, i As Long, j As Long
+    Dim counts() As Long, dates() As Double, docNo As String
+    Dim tS As String, tL As Long, tD As Double, countCol As Long, dateCol As Long
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    ReDim docNos(1 To lastRow): ReDim names(1 To lastRow): ReDim bodies(1 To lastRow)
+    ReDim counts(1 To lastRow): ReDim dates(1 To lastRow)
+    countCol = ExPaste_Column("使用回数"): dateCol = ExPaste_Column("最終使用日")
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 2).Value) = cat1 And CStr(ws.Cells(r, 3).Value) = cat2 _
+        And ExPaste_IsActive(ws.Cells(r, 8).Value) Then
+            docNo = CStr(ws.Cells(r, 1).Value)
+            p = ExPaste_Find(docNos, ExPaste_Load, docNo)
+            If p = 0 Then
+                ExPaste_Load = ExPaste_Load + 1: p = ExPaste_Load
+                docNos(p) = docNo: names(p) = CStr(ws.Cells(r, 4).Value)
+                bodies(p) = CStr(ws.Cells(r, 5).Value)
+            End If
+            If countCol > 0 And Val(ws.Cells(r, countCol).Value) > counts(p) Then counts(p) = Val(ws.Cells(r, countCol).Value)
+            If dateCol > 0 And IsDate(ws.Cells(r, dateCol).Value) Then
+                If CDbl(CDate(ws.Cells(r, dateCol).Value)) > dates(p) Then dates(p) = CDbl(CDate(ws.Cells(r, dateCol).Value))
+            End If
+        End If
+    Next
+    For i = 1 To ExPaste_Load - 1
+        For j = i + 1 To ExPaste_Load
+            If counts(j) > counts(i) Or _
+            (counts(j) = counts(i) And dates(j) > dates(i)) Or _
+            (counts(j) = counts(i) And dates(j) = dates(i) And docNos(j) < docNos(i)) Then
+                tS = docNos(i): docNos(i) = docNos(j): docNos(j) = tS
+                tS = names(i): names(i) = names(j): names(j) = tS
+                tS = bodies(i): bodies(i) = bodies(j): bodies(j) = tS
+                tL = counts(i): counts(i) = counts(j): counts(j) = tL
+                tD = dates(i): dates(i) = dates(j): dates(j) = tD
+            End If
+        Next
+    Next
+End Function
+
+Public Function ExPaste_ToWord(ByVal body As String) As Boolean
+    Dim wd As Object
+    On Error Resume Next
+    Set wd = GetObject(, "Word.Application")
+    If Not wd Is Nothing Then wd.Selection.Text = body: ExPaste_ToWord = (Err.Number = 0)
+    On Error GoTo 0
+End Function
+
+Public Function ExPaste_ToExcel(ByVal body As String) As Boolean
+    Dim c As Range
+    On Error Resume Next
+    Set c = Application.ActiveCell
+    If Not c Is Nothing Then
+        If c.MergeCells Then Set c = c.MergeArea.Cells(1, 1)
+        c.Value = body: ExPaste_ToExcel = (Err.Number = 0)
+    End If
+    On Error GoTo 0
+End Function
+
+Public Function ExPaste_AutoPaste(ByVal body As String) As Boolean
+    Dim wd As Object
+    On Error Resume Next
+    Set wd = GetObject(, "Word.Application")
+    On Error GoTo 0
+    If Not wd Is Nothing Then
+        ExPaste_AutoPaste = ExPaste_ToWord(body)
+    Else
+        ExPaste_AutoPaste = ExPaste_ToExcel(body)
+    End If
+End Function
+
+Public Sub ExPaste_AddUse(ByVal docNo As String)
+    Dim ws As Worksheet, lastRow As Long, r As Long, maxCount As Long
+    Dim countCol As Long, dateCol As Long
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    countCol = ExPaste_Column("使用回数"): dateCol = ExPaste_Column("最終使用日")
+    If countCol = 0 Or dateCol = 0 Then Exit Sub
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = docNo Then If Val(ws.Cells(r, countCol).Value) > maxCount Then maxCount = Val(ws.Cells(r, countCol).Value)
+    Next
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = docNo Then
+            ws.Cells(r, countCol).Value = maxCount + 1: ws.Cells(r, dateCol).Value = Now
+        End If
+    Next
+End Sub
+
+Public Sub ExPaste_Edit(ByVal docNo As String)
+    If Not frmExCollect.Visible Then frmExCollect.Show vbModeless
+    frmExCollect.LoadDocument docNo
+End Sub
+
+Private Function ExPaste_Column(ByVal header As String) As Long
+    Dim ws As Worksheet, c As Long, lastCol As Long
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    For c = 1 To lastCol
+        If CStr(ws.Cells(1, c).Value) = header Then ExPaste_Column = c: Exit Function
+    Next
+End Function
+
+Private Function ExPaste_Find(ByRef values() As String, ByVal count As Long, ByVal value As String) As Long
+    Dim i As Long
+    For i = 1 To count
+        If values(i) = value Then ExPaste_Find = i: Exit Function
+    Next
+End Function
+
+Private Function ExPaste_IsActive(ByVal value As Variant) As Boolean
+    ExPaste_IsActive = (value = True Or UCase$(CStr(value)) = "TRUE" Or CStr(value) = "1")
+End Function

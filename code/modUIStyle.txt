@@ -1,0 +1,262 @@
+﻿Option Explicit
+
+Private Const UI_WHITE As Long = 16777215
+Private Const UI_FORM As Long = 16448250
+Private Const UI_LIGHT As Long = 15921906
+Private Const UI_LINE As Long = 12500670
+Private Const UI_NAVY As Long = 5517858
+Private Const UI_TEXT As Long = 4605510
+
+Public Sub Palette_ThemeForm(ByVal frm As Object)
+    On Error Resume Next
+    Select Case TypeName(frm)
+        Case "frmPalette": UI_ApplyPalette frm
+        Case "frmExCollect": UI_ApplyExCollect frm
+        Case "frmExPaste": UI_ApplyExPaste frm
+    End Select
+    On Error GoTo 0
+End Sub
+
+Public Sub UI_ApplyPalette(ByVal frm As Object)
+    Dim i As Long, tile As Object
+    BaseForm frm, "Palette", 430, 234
+    Rect frm, "lblPaletteHeaderBand", 0, 0, 430, 62
+    Rect frm, "lblPaletteTitle", 18, 10, 250, 25
+    Rect frm, "lblPaletteSubtitle", 18, 36, 250, 16
+    Rect frm, "lblPaletteHeaderLine", 18, 59, 394, 2
+    CaptionOf frm, "lblPaletteTitle", "Palette"
+    CaptionOf frm, "lblPaletteSubtitle", "仕事で使う機能を選択"
+    LineOf frm, "lblPaletteHeaderLine"
+    HeaderBand frm, "lblPaletteHeaderBand"
+    TitleOf frm, "lblPaletteTitle", 12
+    SubtitleOf frm, "lblPaletteSubtitle"
+    For i = 1 To 8
+        Set tile = frm.Controls("fraTool" & i)
+        tile.Width = 178: tile.Height = 76
+        tile.BackColor = UI_WHITE: tile.ForeColor = UI_NAVY
+        Rect tile, "lblToolAccent" & i, 0, 0, 3, 76
+        LineOf tile, "lblToolAccent" & i
+        Rect tile, "lblToolName" & i, 14, 10, 118, 20
+        Rect tile, "lblToolDesc" & i, 14, 34, 118, 32
+        Rect tile, "cmdTool" & i, 136, 21, 32, 30
+        ToolName tile, "lblToolName" & i
+        ToolDesc tile, "lblToolDesc" & i
+        ButtonOf tile, "cmdTool" & i, False
+    Next
+    Rect frm, "cmdClose", 342, 176, 70, 26
+    CaptionOf frm, "cmdClose", "閉じる"
+    ButtonOf frm, "cmdClose", False
+End Sub
+
+Public Sub UI_ApplyExCollect(ByVal frm As Object)
+    Dim i As Long, rowTop
+    BaseForm frm, "例文収集", 340, 860
+    Rect frm, "lblCollectHeaderBand", 0, 0, 340, 38
+    Rect frm, "lblCollectTitle", 18, 9, 108, 22
+    Rect frm, "lblCollectSubtitle", 128, 11, 194, 18
+    Rect frm, "lblCollectHeaderLine", 18, 35, 304, 2
+    HeaderBand frm, "lblCollectHeaderBand": LineOf frm, "lblCollectHeaderLine"
+    CaptionOf frm, "lblCollectTitle", "例文収集"
+    CaptionOf frm, "lblCollectSubtitle", "文書から例文を登録・更新します"
+    TitleOf frm, "lblCollectTitle", 12: SubtitleOf frm, "lblCollectSubtitle"
+    Rect frm, "lblMode", 20, 48, 190, 18
+    Rect frm, "lblDocNo", 20, 74, 100, 18
+    Rect frm, "cboDocNo", 120, 70, 125, 24
+    Rect frm, "cmdLoad", 250, 69, 70, 26
+    Rect frm, "lblBody", 20, 108, 80, 18
+    Rect frm, "txtBody", 20, 130, 300, 116
+    Rect frm, "cmdGetWordText", 20, 256, 145, 30
+    Rect frm, "cmdGetExcelText", 175, 256, 145, 30
+    Rect frm, "lblExName", 20, 302, 80, 18
+    Rect frm, "txtExName", 20, 324, 300, 24
+    Rect frm, "lblCat1", 20, 365, 80, 18
+    Rect frm, "fraCat1", 20, 387, 300, 64
+    SetCatOptions frm.Controls("fraCat1")
+    Rect frm, "lblCat2", 20, 465, 80, 18
+    Rect frm, "cboCat2", 20, 487, 190, 24
+    Rect frm, "cmdCatAdd", 218, 486, 102, 26
+    Rect frm, "lblCatList", 20, 526, 100, 18
+    rowTop = Array(548, 572, 596, 620)
+    For i = 1 To 4
+        Rect frm, "lblSelectedCat" & i, 20, rowTop(i - 1), 262, 20
+        Rect frm, "cmdDeleteCat" & i, 292, rowTop(i - 1) - 2, 28, 23
+        CaptionOf frm, "cmdDeleteCat" & i, "×"
+        ButtonOf frm, "cmdDeleteCat" & i, False
+    Next
+    Rect frm, "cmdRestoreLastCats", 198, 650, 122, 26
+    Rect frm, "lblSource", 20, 690, 80, 18
+    Rect frm, "txtSource", 20, 712, 300, 24
+    Rect frm, "lblNote", 20, 747, 80, 18
+    Rect frm, "txtNote", 20, 769, 300, 24
+    Rect frm, "cmdSave", 20, 805, 130, 30
+    Rect frm, "cmdClear", 160, 805, 80, 30
+    Rect frm, "cmdClose", 250, 805, 70, 30
+    CaptionOf frm, "cmdLoad", "読込"
+    CaptionOf frm, "cmdGetWordText", "Wordから取得"
+    CaptionOf frm, "cmdGetExcelText", "Excelから取得"
+    CaptionOf frm, "cmdCatAdd", "追加"
+    CaptionOf frm, "cmdRestoreLastCats", "前回の分類"
+    CaptionOf frm, "cmdSave", "登録／更新"
+    CaptionOf frm, "cmdClear", "新規クリア"
+    CaptionOf frm, "cmdClose", "閉じる"
+    TextBoxOf frm, "txtBody", True
+    TextBoxOf frm, "txtExName", False
+    TextBoxOf frm, "txtSource", False
+    TextBoxOf frm, "txtNote", False
+    ComboOf frm, "cboDocNo": ComboOf frm, "cboCat2"
+    ButtonOf frm, "cmdSave", True
+    For Each rowTop In Array("cmdLoad", "cmdGetWordText", "cmdGetExcelText", "cmdCatAdd", _
+        "cmdRestoreLastCats", "cmdClear", "cmdClose")
+        ButtonOf frm, CStr(rowTop), False
+    Next
+End Sub
+
+Public Sub UI_ApplyExPaste(ByVal frm As Object)
+    Dim i As Long, tops
+    BaseForm frm, "例文貼付", 340, 735
+    Rect frm, "lblPasteHeaderBand", 0, 0, 340, 38
+    Rect frm, "lblTitle", 18, 9, 98, 24
+    Rect frm, "lblPasteSubtitle", 116, 11, 206, 18
+    Rect frm, "lblPasteHeaderLine", 18, 35, 304, 2
+    HeaderBand frm, "lblPasteHeaderBand": LineOf frm, "lblPasteHeaderLine"
+    CaptionOf frm, "lblTitle", "例文貼付"
+    CaptionOf frm, "lblPasteSubtitle", "例文をダブルクリックして貼り付けます"
+    TitleOf frm, "lblTitle", 12: SubtitleOf frm, "lblPasteSubtitle"
+    Rect frm, "lblCat1", 20, 52, 80, 18
+    Rect frm, "fraCat1", 20, 74, 300, 64
+    SetCatOptions frm.Controls("fraCat1")
+    Rect frm, "lblCat2", 20, 151, 80, 18
+    Rect frm, "cboCat2", 20, 173, 300, 24
+    Rect frm, "lblCandidates", 20, 214, 70, 18
+    Rect frm, "lblHint", 88, 214, 232, 18
+    tops = Array(240, 312, 384, 456, 528)
+    For i = 1 To 5
+        Rect frm, "lblExample" & i, 20, tops(i - 1), 300, 64
+        CandidateOf frm, "lblExample" & i
+    Next
+    Rect frm, "cmdPrev", 20, 607, 70, 26
+    Rect frm, "lblPage", 132, 612, 76, 18
+    Rect frm, "cmdNext", 250, 607, 70, 26
+    Rect frm, "cmdEdit", 20, 665, 92, 30
+    Rect frm, "cmdReload", 124, 665, 92, 30
+    Rect frm, "cmdClose", 228, 665, 92, 30
+    ComboOf frm, "cboCat2"
+    ButtonOf frm, "cmdEdit", True
+    ButtonOf frm, "cmdPrev", False: ButtonOf frm, "cmdNext", False
+    ButtonOf frm, "cmdReload", False: ButtonOf frm, "cmdClose", False
+End Sub
+
+Public Sub UI_ApplySheets()
+    Dim ws As Worksheet, lastCol As Long, used As Range
+    On Error Resume Next
+    For Each ws In ThisWorkbook.Worksheets
+        If Left$(ws.Name, 5) = "zz_Ex" Or ws.Name = "zz_PaletteCheck" Then
+            Set used = ws.UsedRange
+            used.Font.Name = "Meiryo UI": used.Font.Size = 10
+            lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+            With ws.Range(ws.Cells(1, 1), ws.Cells(1, lastCol))
+                .Interior.Color = UI_LIGHT: .Font.Color = UI_NAVY
+                .Font.Bold = True: .RowHeight = 24
+            End With
+            used.Borders.Color = RGB(230, 230, 230)
+        End If
+    Next
+    On Error GoTo 0
+End Sub
+
+Private Sub BaseForm(ByVal frm As Object, ByVal cap As String, ByVal w As Single, ByVal h As Single)
+    On Error Resume Next
+    frm.Caption = cap: frm.Width = w: frm.Height = h
+    frm.BackColor = UI_FORM: frm.Font.Name = "Meiryo UI": frm.Font.Size = 9
+    On Error GoTo 0
+End Sub
+
+Private Sub Rect(ByVal box As Object, ByVal n As String, ByVal l As Single, _
+    ByVal t As Single, ByVal w As Single, ByVal h As Single)
+    Dim c As Object
+    On Error Resume Next
+    Set c = box.Controls(n)
+    c.Left = l: c.Top = t: c.Width = w: c.Height = h
+    c.Font.Name = "Meiryo UI": c.Font.Size = 9
+    On Error GoTo 0
+End Sub
+
+Private Sub CaptionOf(ByVal box As Object, ByVal n As String, ByVal text As String)
+    On Error Resume Next: box.Controls(n).Caption = text: On Error GoTo 0
+End Sub
+
+Private Sub HeaderBand(ByVal box As Object, ByVal n As String)
+    On Error Resume Next: box.Controls(n).BackStyle = 1: box.Controls(n).BackColor = UI_LIGHT: On Error GoTo 0
+End Sub
+
+Private Sub LineOf(ByVal box As Object, ByVal n As String)
+    On Error Resume Next: box.Controls(n).BackStyle = 1: box.Controls(n).BackColor = UI_NAVY: On Error GoTo 0
+End Sub
+
+Private Sub TitleOf(ByVal box As Object, ByVal n As String, ByVal size As Single)
+    On Error Resume Next
+    With box.Controls(n): .BackStyle = 0: .ForeColor = UI_NAVY: .Font.Name = "Meiryo UI": .Font.Size = size: .Font.Bold = True: End With
+    On Error GoTo 0
+End Sub
+
+Private Sub SubtitleOf(ByVal box As Object, ByVal n As String)
+    On Error Resume Next
+    With box.Controls(n): .BackStyle = 0: .ForeColor = RGB(105, 105, 105): .Font.Name = "Meiryo UI": .Font.Size = 8.5: End With
+    On Error GoTo 0
+End Sub
+
+Private Sub ToolName(ByVal box As Object, ByVal n As String)
+    On Error Resume Next
+    With box.Controls(n): .BackStyle = 0: .ForeColor = UI_NAVY: .Font.Bold = True: .Font.Name = "Meiryo UI": End With
+    On Error GoTo 0
+End Sub
+
+Private Sub ToolDesc(ByVal box As Object, ByVal n As String)
+    On Error Resume Next
+    With box.Controls(n): .BackStyle = 0: .ForeColor = UI_TEXT: .Font.Size = 8: .WordWrap = True: End With
+    On Error GoTo 0
+End Sub
+
+Private Sub ButtonOf(ByVal box As Object, ByVal n As String, ByVal primary As Boolean)
+    On Error Resume Next
+    With box.Controls(n)
+        .BackColor = IIf(primary, RGB(230, 230, 230), UI_WHITE)
+        .ForeColor = IIf(primary, UI_NAVY, UI_TEXT)
+        .Font.Name = "Meiryo UI": .Font.Size = 9: .Font.Bold = primary
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub TextBoxOf(ByVal box As Object, ByVal n As String, ByVal multi As Boolean)
+    On Error Resume Next
+    With box.Controls(n)
+        .BackColor = UI_WHITE: .ForeColor = UI_TEXT: .BorderStyle = 1
+        .MultiLine = multi: .WordWrap = multi
+        If multi Then .ScrollBars = 2
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub ComboOf(ByVal box As Object, ByVal n As String)
+    On Error Resume Next: box.Controls(n).BackColor = UI_WHITE: box.Controls(n).ForeColor = UI_TEXT: On Error GoTo 0
+End Sub
+
+Private Sub CandidateOf(ByVal box As Object, ByVal n As String)
+    On Error Resume Next
+    With box.Controls(n)
+        .BackStyle = 1: .BackColor = UI_WHITE: .ForeColor = UI_TEXT
+        .BorderStyle = 1: .BorderColor = UI_LINE: .WordWrap = True
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub SetCatOptions(ByVal frame As Object)
+    Rect frame, "optCat1", 8, 12, 88, 18
+    Rect frame, "optCat2", 102, 12, 88, 18
+    Rect frame, "optCat3", 196, 12, 88, 18
+    Rect frame, "optCat4", 8, 36, 88, 18
+    Rect frame, "optCatOther", 102, 36, 88, 18
+    On Error Resume Next
+    frame.BackColor = UI_WHITE: frame.ForeColor = UI_NAVY
+    On Error GoTo 0
+End Sub

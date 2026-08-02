@@ -1,0 +1,193 @@
+﻿Option Explicit
+
+Private mCheckRow As Long
+
+Public Sub Palette_Company_Check()
+    Dim ws As Worksheet
+    Set ws = Company_CheckSheet
+    ws.Cells.Clear
+    ws.Range("A1:D1").Value = Array("区分", "対象", "結果", "内容")
+    mCheckRow = 2
+
+    CheckSheet ws, "zz_ExCategory", Array("第1分類", "第2分類", "表示順", "使用中")
+    CheckSheet ws, "zz_ExData", Array("文書番号", "第1分類", "第2分類", "例文名", "本文", _
+        "出典", "備考", "使用中", "登録日", "更新日", "使用回数", "最終使用日")
+    CheckSheet ws, "zz_ExSetting", Array("設定名", "設定値")
+    CheckDuplicateKeys ws, "zz_ExSetting", 1
+    CheckDuplicatePairs ws, "zz_ExCategory", 1, 2
+
+    CheckForm ws, frmPalette, "frmPalette", PaletteControls()
+    CheckForm ws, frmExCollect, "frmExCollect", CollectControls()
+    CheckForm ws, frmExPaste, "frmExPaste", PasteControls()
+    CheckModules ws
+
+    ws.Columns("A:D").AutoFit
+    ws.Columns("D:D").ColumnWidth = 45
+    ws.Range("A1:D1").Font.Bold = True
+    ws.Range("A1:D1").Interior.Color = RGB(242, 242, 242)
+    ws.Range("A1:D1").Font.Color = RGB(34, 50, 84)
+    ws.Activate
+    MsgBox "診断が完了しました。zz_PaletteCheckシートを確認してください。", vbInformation
+End Sub
+
+Private Sub CheckDuplicateKeys(ByVal outWs As Worksheet, ByVal sheetName As String, ByVal keyCol As Long)
+    Dim ws As Worksheet, seen As Object, r As Long, lastRow As Long, key As String, duplicateCount As Long
+    On Error Resume Next: Set ws = ThisWorkbook.Worksheets(sheetName): On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    Set seen = CreateObject("Scripting.Dictionary")
+    lastRow = ws.Cells(ws.Rows.Count, keyCol).End(xlUp).Row
+    For r = 2 To lastRow
+        key = Trim$(CStr(ws.Cells(r, keyCol).Value))
+        If Len(key) > 0 Then
+            If seen.Exists(key) Then duplicateCount = duplicateCount + 1 Else seen.Add key, True
+        End If
+    Next
+    If duplicateCount = 0 Then
+        AddResult outWs, "重複", sheetName, "OK", "設定名の重複なし"
+    Else
+        AddResult outWs, "重複", sheetName, "NG", duplicateCount & "件の重複があります"
+    End If
+End Sub
+
+Private Sub CheckDuplicatePairs(ByVal outWs As Worksheet, ByVal sheetName As String, _
+    ByVal col1 As Long, ByVal col2 As Long)
+    Dim ws As Worksheet, seen As Object, r As Long, lastRow As Long, key As String, duplicateCount As Long
+    On Error Resume Next: Set ws = ThisWorkbook.Worksheets(sheetName): On Error GoTo 0
+    If ws Is Nothing Then Exit Sub
+    Set seen = CreateObject("Scripting.Dictionary")
+    lastRow = ws.Cells(ws.Rows.Count, col1).End(xlUp).Row
+    For r = 2 To lastRow
+        key = Trim$(CStr(ws.Cells(r, col1).Value)) & ChrW(30) & Trim$(CStr(ws.Cells(r, col2).Value))
+        If Len(Replace(key, ChrW(30), "")) > 0 Then
+            If seen.Exists(key) Then duplicateCount = duplicateCount + 1 Else seen.Add key, True
+        End If
+    Next
+    If duplicateCount = 0 Then
+        AddResult outWs, "重複", sheetName, "OK", "分類の重複なし"
+    Else
+        AddResult outWs, "重複", sheetName, "NG", duplicateCount & "件の重複があります"
+    End If
+End Sub
+
+Private Function Company_CheckSheet() As Worksheet
+    On Error Resume Next
+    Set Company_CheckSheet = ThisWorkbook.Worksheets("zz_PaletteCheck")
+    On Error GoTo 0
+    If Company_CheckSheet Is Nothing Then
+        Set Company_CheckSheet = ThisWorkbook.Worksheets.Add( _
+            After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        Company_CheckSheet.Name = "zz_PaletteCheck"
+    End If
+End Function
+
+Private Sub CheckSheet(ByVal outWs As Worksheet, ByVal sheetName As String, ByVal headers As Variant)
+    Dim ws As Worksheet, i As Long, result As String, detail As String
+    On Error Resume Next: Set ws = ThisWorkbook.Worksheets(sheetName): On Error GoTo 0
+    If ws Is Nothing Then
+        AddResult outWs, "シート", sheetName, "NG", "存在しません"
+        Exit Sub
+    End If
+    AddResult outWs, "シート", sheetName, "OK", ""
+    For i = 0 To UBound(headers)
+        result = "OK": detail = ""
+        If CStr(ws.Cells(1, i + 1).Value) <> CStr(headers(i)) Then
+            result = "NG": detail = "正しい見出し：" & headers(i)
+        End If
+        AddResult outWs, "見出し", sheetName & "!" & ws.Cells(1, i + 1).Address(False, False), result, detail
+    Next
+End Sub
+
+Private Sub CheckForm(ByVal outWs As Worksheet, ByVal frm As Object, _
+    ByVal formName As String, ByVal names As Variant)
+    Dim i As Long, c As Object
+    If frm Is Nothing Then
+        AddResult outWs, "フォーム", formName, "NG", "存在しません"
+        Exit Sub
+    End If
+    AddResult outWs, "フォーム", formName, "OK", ""
+    For i = 0 To UBound(names)
+        Set c = Nothing
+        Set c = FindControl(frm, CStr(names(i)))
+        If c Is Nothing Then
+            AddResult outWs, "コントロール", formName & "." & names(i), "NG", "存在しません"
+        Else
+            AddResult outWs, "コントロール", formName & "." & names(i), "OK", ""
+        End If
+    Next
+End Sub
+
+Private Function FindControl(ByVal box As Object, ByVal controlName As String) As Object
+    Dim c As Object, found As Object
+    On Error Resume Next
+    Set FindControl = box.Controls(controlName)
+    If Not FindControl Is Nothing Then Exit Function
+    For Each c In box.Controls
+        If TypeName(c) = "Frame" Then
+            Set found = c.Controls(controlName)
+            If Not found Is Nothing Then Set FindControl = found: Exit Function
+        End If
+    Next
+    On Error GoTo 0
+End Function
+
+Private Sub CheckModules(ByVal ws As Worksheet)
+    Dim names, i As Long, component As Object
+    names = Array("modUIStyle", "modExMain", "modExPaste", "modPalette", _
+        "modCompanySetup", "modCompanyCheck")
+    On Error GoTo NotAllowed
+    For i = 0 To UBound(names)
+        Set component = Nothing
+        Set component = ThisWorkbook.VBProject.VBComponents(CStr(names(i)))
+        If component Is Nothing Then
+            AddResult ws, "標準モジュール", names(i), "NG", "存在しません"
+        Else
+            AddResult ws, "標準モジュール", names(i), "OK", ""
+        End If
+    Next
+    Exit Sub
+NotAllowed:
+    AddResult ws, "標準モジュール", "VBAプロジェクト", "確認不可", _
+        "アクセス許可が無効です。コード貼付順で目視確認してください。"
+End Sub
+
+Private Sub AddResult(ByVal ws As Worksheet, ByVal kind As String, ByVal target As String, _
+    ByVal result As String, ByVal detail As String)
+    ws.Cells(mCheckRow, 1).Value = kind
+    ws.Cells(mCheckRow, 2).Value = target
+    ws.Cells(mCheckRow, 3).Value = result
+    ws.Cells(mCheckRow, 4).Value = detail
+    mCheckRow = mCheckRow + 1
+End Sub
+
+Private Function PaletteControls() As Variant
+    Dim a(0 To 44) As String, i As Long, n As Long
+    a(n) = "lblPaletteHeaderBand": n = n + 1
+    a(n) = "lblPaletteTitle": n = n + 1
+    a(n) = "lblPaletteSubtitle": n = n + 1
+    a(n) = "lblPaletteHeaderLine": n = n + 1
+    For i = 1 To 8
+        a(n) = "fraTool" & i: n = n + 1
+        a(n) = "lblToolAccent" & i: n = n + 1
+        a(n) = "lblToolName" & i: n = n + 1
+        a(n) = "lblToolDesc" & i: n = n + 1
+        a(n) = "cmdTool" & i: n = n + 1
+    Next
+    a(n) = "cmdClose"
+    PaletteControls = a
+End Function
+
+Private Function CollectControls() As Variant
+    CollectControls = Split("lblCollectHeaderBand,lblCollectTitle,lblCollectSubtitle,lblCollectHeaderLine," & _
+        "lblMode,lblDocNo,cboDocNo,cmdLoad,lblBody,txtBody,cmdGetWordText,cmdGetExcelText," & _
+        "lblExName,txtExName,lblCat1,fraCat1,optCat1,optCat2,optCat3,optCat4,optCatOther," & _
+        "lblCat2,cboCat2,cmdCatAdd,lblCatList,lblSelectedCat1,lblSelectedCat2,lblSelectedCat3," & _
+        "lblSelectedCat4,cmdDeleteCat1,cmdDeleteCat2,cmdDeleteCat3,cmdDeleteCat4," & _
+        "cmdRestoreLastCats,lblSource,txtSource,lblNote,txtNote,cmdSave,cmdClear,cmdClose", ",")
+End Function
+
+Private Function PasteControls() As Variant
+    PasteControls = Split("lblPasteHeaderBand,lblTitle,lblPasteSubtitle,lblPasteHeaderLine,lblCat1," & _
+        "fraCat1,optCat1,optCat2,optCat3,optCat4,optCatOther,lblCat2,cboCat2,lblCandidates,lblHint," & _
+        "lblExample1,lblExample2,lblExample3,lblExample4,lblExample5,cmdPrev,lblPage,cmdNext," & _
+        "cmdEdit,cmdReload,cmdClose", ",")
+End Function

@@ -1,0 +1,288 @@
+﻿Option Explicit
+
+Public Const EX_CAT_SHEET As String = "zz_ExCategory"
+Public Const EX_DATA_SHEET As String = "zz_ExData"
+
+Public Sub ExCollect_Open()
+    If Not frmExCollect.Visible Then frmExCollect.Show vbModeless
+End Sub
+
+Public Function Ex_SelectedText() As String
+    Dim wd As Object, s As String
+    On Error Resume Next
+    Set wd = GetObject(, "Word.Application")
+    If Not wd Is Nothing Then s = wd.Selection.Text
+    On Error GoTo 0
+    Do While Len(s) > 0 And (Right$(s, 1) = Chr$(13) Or Right$(s, 1) = Chr$(7))
+        s = Left$(s, Len(s) - 1)
+    Loop
+    Ex_SelectedText = s
+End Function
+
+Public Function Ex_SelectedExcelText() As String
+    Dim sel As Range, ar As Range, rw As Range, c As Range, mc As Range
+    Dim seen As New Collection
+    Dim result As String, areaText As String, lineText As String
+    Dim s As String, key As String
+
+    On Error Resume Next
+    Set sel = Application.Selection
+    On Error GoTo Finish
+    If sel Is Nothing Then Exit Function
+
+    For Each ar In sel.Areas
+        areaText = ""
+        For Each rw In ar.Rows
+            lineText = ""
+            For Each c In rw.Cells
+                s = ""
+                If c.MergeCells Then
+                    Set mc = c.MergeArea
+                    key = mc.Row & "_" & mc.Column & "_" & mc.Rows.Count & "_" & mc.Columns.Count
+                    If Ex_FirstMerge(seen, key) Then s = CStr(mc.Cells(1, 1).Text)
+                Else
+                    s = CStr(c.Text)
+                End If
+
+                If Len(Trim$(s)) > 0 Then
+                    If Len(lineText) > 0 Then lineText = lineText & " "
+                    lineText = lineText & s
+                End If
+            Next
+            If Len(lineText) > 0 Then
+                If Len(areaText) > 0 Then areaText = areaText & vbCrLf
+                areaText = areaText & lineText
+            End If
+        Next
+        If Len(areaText) > 0 Then
+            If Len(result) > 0 Then result = result & vbCrLf
+            result = result & areaText
+        End If
+    Next
+
+Finish:
+    Ex_SelectedExcelText = result
+End Function
+
+Private Function Ex_FirstMerge(ByVal seen As Collection, ByVal key As String) As Boolean
+    On Error Resume Next
+    seen.Add True, key
+    Ex_FirstMerge = (Err.Number = 0)
+    Err.Clear
+    On Error GoTo 0
+End Function
+
+Public Function Ex_NextName(ByVal cat2 As String) As String
+    Dim ws As Worksheet, r As Long, lastRow As Long
+    Dim exName As String, suffix As String
+    Dim n As Long, maxNo As Long
+
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 3).Value) = cat2 Then
+            exName = CStr(ws.Cells(r, 4).Value)
+            If Left$(exName, Len(cat2)) = cat2 And Len(exName) > Len(cat2) Then
+                suffix = Mid$(exName, Len(cat2) + 1)
+                If suffix Like String$(Len(suffix), "#") Then
+                    n = Val(suffix)
+                    If n > maxNo Then maxNo = n
+                End If
+            End If
+        End If
+    Next
+
+    Ex_NextName = cat2 & Format$(maxNo + 1, "00")
+End Function
+
+Public Function Ex_GetMainCats(ByRef names() As String) As Long
+    Dim ws As Worksheet, r As Long, lastRow As Long
+    Dim workName() As String, workOrder() As Long
+    Dim count As Long, i As Long, j As Long, p As Long
+    Dim cat As String, orderNo As Long, tmpName As String, tmpOrder As Long
+
+    Set ws = ThisWorkbook.Worksheets(EX_CAT_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    ReDim workName(1 To lastRow)
+    ReDim workOrder(1 To lastRow)
+    ReDim names(1 To 5)
+
+    For r = 2 To lastRow
+        If UCase$(CStr(ws.Cells(r, 4).Value)) = "TRUE" Then
+            cat = CStr(ws.Cells(r, 1).Value)
+            If Len(cat) > 0 And cat <> "その他" Then
+                p = 0
+                For i = 1 To count
+                    If workName(i) = cat Then p = i
+                Next
+                orderNo = Val(ws.Cells(r, 3).Value)
+                If orderNo = 0 Then orderNo = r
+                If p = 0 Then
+                    count = count + 1
+                    workName(count) = cat
+                    workOrder(count) = orderNo
+                ElseIf orderNo < workOrder(p) Then
+                    workOrder(p) = orderNo
+                End If
+            End If
+        End If
+    Next
+
+    For i = 1 To count - 1
+        For j = i + 1 To count
+            If workOrder(j) < workOrder(i) Then
+                tmpName = workName(i): workName(i) = workName(j): workName(j) = tmpName
+                tmpOrder = workOrder(i): workOrder(i) = workOrder(j): workOrder(j) = tmpOrder
+            End If
+        Next
+    Next
+
+    Ex_GetMainCats = count
+    If Ex_GetMainCats > 4 Then Ex_GetMainCats = 4
+    For i = 1 To Ex_GetMainCats
+        names(i) = workName(i)
+    Next
+    Ex_GetMainCats = Ex_GetMainCats + 1
+    names(Ex_GetMainCats) = "その他"
+End Function
+
+Public Function Ex_GetCat2(ByVal cat1 As String, ByRef names() As String) As Long
+    Dim ws As Worksheet, r As Long, lastRow As Long
+    Dim orders() As Long, i As Long, j As Long
+    Dim cat As String, orderNo As Long, tmpName As String, tmpOrder As Long
+
+    Set ws = ThisWorkbook.Worksheets(EX_CAT_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    ReDim names(1 To lastRow)
+    ReDim orders(1 To lastRow)
+
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = cat1 _
+        And UCase$(CStr(ws.Cells(r, 4).Value)) = "TRUE" Then
+            cat = CStr(ws.Cells(r, 2).Value)
+            If Len(cat) > 0 Then
+                Ex_GetCat2 = Ex_GetCat2 + 1
+                names(Ex_GetCat2) = cat
+                orderNo = Val(ws.Cells(r, 3).Value)
+                If orderNo = 0 Then orderNo = r
+                orders(Ex_GetCat2) = orderNo
+            End If
+        End If
+    Next
+
+    For i = 1 To Ex_GetCat2 - 1
+        For j = i + 1 To Ex_GetCat2
+            If orders(j) < orders(i) Then
+                tmpName = names(i): names(i) = names(j): names(j) = tmpName
+                tmpOrder = orders(i): orders(i) = orders(j): orders(j) = tmpOrder
+            End If
+        Next
+    Next
+End Function
+
+Public Function Ex_NextNo() As String
+    Dim ws As Worksheet, r As Long, lastRow As Long, n As Long, maxNo As Long
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        n = Val(Mid$(CStr(ws.Cells(r, 1).Value), 3))
+        If n > maxNo Then maxNo = n
+    Next
+    Ex_NextNo = "EX" & Format$(maxNo + 1, "0000")
+End Function
+
+Public Function Ex_SaveNew(ByVal exName As String, ByVal body As String, _
+    ByVal source As String, ByVal note As String, ByRef cat1() As String, _
+    ByRef cat2() As String, ByVal catCount As Long) As String
+    Dim ws As Worksheet, docNo As String, r As Long, i As Long
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    docNo = Ex_NextNo()
+    For i = 1 To catCount
+        r = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+        Ex_WriteRow ws, r, docNo, cat1(i), cat2(i), _
+            exName, body, source, note, Date
+    Next
+    Ex_SaveNew = docNo
+End Function
+
+Public Sub Ex_Update(ByVal docNo As String, ByVal exName As String, _
+    ByVal body As String, ByVal source As String, ByVal note As String, _
+    ByRef cat1() As String, ByRef cat2() As String, ByVal catCount As Long)
+    Dim ws As Worksheet, lastRow As Long, r As Long, i As Long, regDate As Variant
+    Set ws = ThisWorkbook.Worksheets(EX_DATA_SHEET)
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = docNo Then
+            regDate = ws.Cells(r, 9).Value
+            Exit For
+        End If
+    Next
+    If Not IsDate(regDate) Then regDate = Date
+    For r = lastRow To 2 Step -1
+        If CStr(ws.Cells(r, 1).Value) = docNo Then
+            If Ex_ListHas(cat1, cat2, catCount, CStr(ws.Cells(r, 2).Value), _
+                CStr(ws.Cells(r, 3).Value)) Then
+                Ex_WriteCommon ws, r, exName, body, source, note
+            Else
+                ws.Rows(r).Delete
+            End If
+        End If
+    Next
+    For i = 1 To catCount
+        If Ex_FindCategoryRow(ws, docNo, cat1(i), cat2(i)) = 0 Then
+            r = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+            Ex_WriteRow ws, r, docNo, cat1(i), cat2(i), _
+                exName, body, source, note, regDate
+        End If
+    Next
+End Sub
+
+Private Sub Ex_WriteRow(ByVal ws As Worksheet, ByVal r As Long, ByVal docNo As String, _
+    ByVal cat1 As String, ByVal cat2 As String, ByVal exName As String, ByVal body As String, _
+    ByVal source As String, ByVal note As String, ByVal regDate As Variant)
+    ws.Cells(r, 1).Value = docNo
+    ws.Cells(r, 2).Value = cat1
+    ws.Cells(r, 3).Value = cat2
+    ws.Cells(r, 4).Value = exName
+    ws.Cells(r, 5).Value = body
+    ws.Cells(r, 6).Value = source
+    ws.Cells(r, 7).Value = note
+    ws.Cells(r, 8).Value = True
+    ws.Cells(r, 9).Value = regDate
+    ws.Cells(r, 10).Value = Date
+End Sub
+
+Private Sub Ex_WriteCommon(ByVal ws As Worksheet, ByVal r As Long, ByVal exName As String, _
+    ByVal body As String, ByVal source As String, ByVal note As String)
+    ws.Cells(r, 4).Value = exName
+    ws.Cells(r, 5).Value = body
+    ws.Cells(r, 6).Value = source
+    ws.Cells(r, 7).Value = note
+    ws.Cells(r, 8).Value = True
+    ws.Cells(r, 10).Value = Date
+End Sub
+
+Private Function Ex_ListHas(ByRef cats1() As String, ByRef cats2() As String, _
+    ByVal catCount As Long, ByVal cat1 As String, ByVal cat2 As String) As Boolean
+    Dim i As Long
+    For i = 1 To catCount
+        If cats1(i) = cat1 And cats2(i) = cat2 Then
+            Ex_ListHas = True
+            Exit Function
+        End If
+    Next
+End Function
+
+Private Function Ex_FindCategoryRow(ByVal ws As Worksheet, ByVal docNo As String, _
+    ByVal cat1 As String, ByVal cat2 As String) As Long
+    Dim r As Long, lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 2 To lastRow
+        If CStr(ws.Cells(r, 1).Value) = docNo And CStr(ws.Cells(r, 2).Value) = cat1 _
+        And CStr(ws.Cells(r, 3).Value) = cat2 Then
+            Ex_FindCategoryRow = r
+            Exit Function
+        End If
+    Next
+End Function

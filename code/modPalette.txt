@@ -1,0 +1,9 @@
+﻿Option Explicit
+
+Public Sub Palette_Open()
+    If frmPalette.Visible Then
+        frmPalette.Repaint
+    Else
+        frmPalette.Show vbModeless
+    End If
+End Sub

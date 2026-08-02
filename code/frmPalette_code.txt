@@ -1,0 +1,89 @@
+﻿Option Explicit
+
+Private mMacro(1 To 8) As String
+
+Private Sub UserForm_Initialize()
+    Palette_ThemeForm Me
+    SetTool 1, "例文収集", "文書から例文を登録・整理します", "ExCollect_Open", True
+    SetTool 2, "例文貼付", "登録した例文を呼び出します", "ExPaste_Open", True
+    SetTool 3, "", "", "", False
+    SetTool 4, "", "", "", False
+    SetTool 5, "", "", "", False
+    SetTool 6, "", "", "", False
+    SetTool 7, "", "", "", False
+    SetTool 8, "", "", "", False
+    LayoutTools
+End Sub
+
+Private Sub SetTool(ByVal n As Long, ByVal toolName As String, _
+    ByVal description As String, ByVal macroName As String, ByVal enabled As Boolean)
+
+    With Me.Controls("fraTool" & n)
+        .Visible = enabled
+        .Controls("lblToolName" & n).Caption = toolName
+        .Controls("lblToolDesc" & n).Caption = description
+    End With
+    mMacro(n) = macroName
+End Sub
+
+Private Sub LayoutTools()
+    Dim i As Long, shown As Long, rows As Long
+    Dim tile As Object
+
+    For i = 1 To 8
+        Set tile = Me.Controls("fraTool" & i)
+        If tile.Visible Then
+            tile.Left = 18 + (shown Mod 2) * 196
+            tile.Top = 76 + (shown \ 2) * 92
+            shown = shown + 1
+        End If
+    Next
+
+    If shown = 0 Then
+        rows = 1
+    Else
+        rows = (shown + 1) \ 2
+    End If
+    Me.Height = 142 + rows * 92
+    cmdClose.Top = Me.Height - 58
+End Sub
+
+Private Sub OpenTool(ByVal n As Long)
+    If Len(mMacro(n)) = 0 Then Exit Sub
+    On Error GoTo Failed
+    Application.Run "'" & ThisWorkbook.Name & "'!" & mMacro(n)
+    Exit Sub
+Failed:
+    MsgBox "機能を起動できませんでした。", vbExclamation
+End Sub
+
+Private Sub cmdTool1_Click(): OpenTool 1: End Sub
+Private Sub cmdTool2_Click(): OpenTool 2: End Sub
+Private Sub cmdTool3_Click(): OpenTool 3: End Sub
+Private Sub cmdTool4_Click(): OpenTool 4: End Sub
+Private Sub cmdTool5_Click(): OpenTool 5: End Sub
+Private Sub cmdTool6_Click(): OpenTool 6: End Sub
+Private Sub cmdTool7_Click(): OpenTool 7: End Sub
+Private Sub cmdTool8_Click(): OpenTool 8: End Sub
+
+Private Sub lblToolName1_Click(): OpenTool 1: End Sub
+Private Sub lblToolName2_Click(): OpenTool 2: End Sub
+Private Sub lblToolName3_Click(): OpenTool 3: End Sub
+Private Sub lblToolName4_Click(): OpenTool 4: End Sub
+Private Sub lblToolName5_Click(): OpenTool 5: End Sub
+Private Sub lblToolName6_Click(): OpenTool 6: End Sub
+Private Sub lblToolName7_Click(): OpenTool 7: End Sub
+Private Sub lblToolName8_Click(): OpenTool 8: End Sub
+
+Private Sub lblToolDesc1_Click(): OpenTool 1: End Sub
+Private Sub lblToolDesc2_Click(): OpenTool 2: End Sub
+Private Sub lblToolDesc3_Click(): OpenTool 3: End Sub
+Private Sub lblToolDesc4_Click(): OpenTool 4: End Sub
+Private Sub lblToolDesc5_Click(): OpenTool 5: End Sub
+Private Sub lblToolDesc6_Click(): OpenTool 6: End Sub
+Private Sub lblToolDesc7_Click(): OpenTool 7: End Sub
+Private Sub lblToolDesc8_Click(): OpenTool 8: End Sub
+
+Private Sub cmdClose_Click()
+    Unload Me
+End Sub
